@@ -1,0 +1,15 @@
+# CMake/Ninja 빌드 산출물
+/build/
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+build.ninja
+.ninja_deps
+.ninja_log
+compile_commands.json
+
+# 소스 트리에서 직접 빌드한 경우
+a.out
+*.o
