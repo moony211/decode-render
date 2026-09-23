@@ -124,3 +124,39 @@ recv 4
   `future.get()`으로 예외를 확인하는 편이 좋습니다.
 - 두 코루틴은 같은 스레드의 `io_context`에서 번갈아 실행됩니다(동시성 O, 병렬성 X).
   병렬 실행이 필요하면 여러 스레드에서 `io_context::run()`을 호출합니다.
+
+## FFmpeg C API 사용 규칙 (`src/ffmpeg.hpp`)
+
+FFmpeg 공개 헤더(`libavcodec/*.h`, `libavformat/*.h`, `libavutil/*.h`)는
+`extern "C"` 가드가 없는 **순수 C 헤더**입니다. C++ 소스에서 그대로 include하면
+컴파일러가 함수명을 C++ 규칙으로 망글링해서(`_Z16avcodec_get_name9AVCodecID`)
+링크 단계에서 다음처럼 실패합니다.
+
+```text
+undefined reference to `avcodec_get_name(AVCodecID)'
+undefined reference to `avformat_open_input(AVFormatContext**, char const*, ...)'
+```
+
+라이브러리(`pkg-config`/`PkgConfig::FFMPEG`)가 정상 연결돼 있어도 나는 에러이며,
+에러 메시지에 **괄호로 인자 타입이 붙어 있는지**가 망글링의 증거입니다
+(순수 C 심볼이면 `avcodec_get_name` 만 표시됩니다). 확인 방법:
+
+```bash
+nm build/CMakeFiles/probe.dir/tools/probe.cpp.o | grep avcodec_get_name
+# 나쁨: U _Z16avcodec_get_name9AVCodecID     ← 망글링됨
+# 좋음: U avcodec_get_name
+```
+
+따라서 FFmpeg 헤더는 개별 소스에서 직접 include하지 않고 **`src/ffmpeg.hpp`를
+통해서만** include합니다. 이 헤더가 모든 FFmpeg include를 `extern "C" { }`로
+감싸 C 링키지를 보장합니다.
+
+```cpp
+#include "ffmpeg.hpp"   // FFmpeg API
+#include "raii.hpp"     // FFmpeg 자원 RAII 래퍼(내부에서 ffmpeg.hpp 포함)
+```
+
+`extern "C"` 블록 안에는 C++ 표준 헤더(`<memory>`, `<string>` 등)를 넣지
+않습니다. FFmpeg 헤더가 끌어오는 것은 glibc C 헤더(`<errno.h>`, `<inttypes.h>`,
+`<math.h>` …)뿐이라 이 방식이 안전합니다.
+

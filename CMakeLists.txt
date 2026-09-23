@@ -13,3 +13,7 @@ add_executable(sdl_check tools/sdl_check.cpp)
 target_link_libraries(sdl_check PRIVATE SDL2::SDL2)
 
 add_executable(hello_coro tools/hello_coro.cpp)   # asio는 header-only, 링크 불필요
+
+add_executable(probe tools/probe.cpp)
+target_include_directories(probe PRIVATE src)
+target_link_libraries(probe PRIVATE PkgConfig::FFMPEG)
